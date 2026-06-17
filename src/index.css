@@ -7,3 +7,10 @@
 body {
   height: 100vh;
 }
+.desktop-nav { display: flex !important; }
+.hamburger { display: none !important; }
+
+@media (max-width: 640px) {
+  .desktop-nav { display: none !important; }
+  .hamburger { display: flex !important; }
+}
