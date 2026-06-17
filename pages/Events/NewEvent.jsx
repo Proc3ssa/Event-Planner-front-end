@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardLayout from "../../components/layout/DashboardLayout";
+import DashboardLayout from "../../src/components/layouts/DashboardLayout";
 
 const EVENT_TYPES = [
   "Wedding",
@@ -25,6 +25,7 @@ export default function NewEvent() {
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -71,7 +72,8 @@ export default function NewEvent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to create event");
 
-      navigate("/dashboard");
+      setSuccess(true);
+      setTimeout(() => navigate("/dashboard"), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -81,6 +83,119 @@ export default function NewEvent() {
 
   return (
     <DashboardLayout>
+      {success && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: "2.5rem 2rem",
+              width: "100%",
+              maxWidth: 360,
+              textAlign: "center",
+            }}
+          >
+            {/* Animated check circle */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: "1.25rem",
+              }}
+            >
+              <svg width="72" height="72" viewBox="0 0 72 72">
+                <circle
+                  cx="36"
+                  cy="36"
+                  r="32"
+                  fill="#f0f9eb"
+                  stroke="#e0f0d0"
+                  strokeWidth="1"
+                />
+                <circle
+                  cx="36"
+                  cy="36"
+                  r="28"
+                  fill="none"
+                  stroke="#2d5a1b"
+                  strokeWidth="3"
+                  strokeDasharray="176"
+                  strokeDashoffset="176"
+                  strokeLinecap="round"
+                  style={{ animation: "drawCircle 0.7s ease forwards" }}
+                />
+                <polyline
+                  points="22,37 32,47 52,27"
+                  fill="none"
+                  stroke="#2d5a1b"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeDasharray="40"
+                  strokeDashoffset="40"
+                  style={{ animation: "drawCheck 0.4s ease 0.6s forwards" }}
+                />
+              </svg>
+            </div>
+
+            <h3
+              style={{
+                fontSize: 17,
+                fontWeight: 500,
+                color: "#111",
+                marginBottom: 6,
+              }}
+            >
+              Event created successfully!
+            </h3>
+            <p style={{ fontSize: 13, color: "#888", marginBottom: "1.5rem" }}>
+              Redirecting you to the dashboard...
+            </p>
+
+            {/* Progress bar */}
+            <div
+              style={{
+                height: 4,
+                background: "#eee",
+                borderRadius: 4,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  background: "#2d5a1b",
+                  borderRadius: 4,
+                  animation: "progressBar 3s linear forwards",
+                }}
+              />
+            </div>
+          </div>
+
+          <style>{`
+      @keyframes drawCircle {
+        to { stroke-dashoffset: 0; }
+      }
+      @keyframes drawCheck {
+        to { stroke-dashoffset: 0; }
+      }
+      @keyframes progressBar {
+        from { width: 0%; }
+        to { width: 100%; }
+      }
+    `}</style>
+        </div>
+      )}
       <div
         style={{
           display: "flex",
