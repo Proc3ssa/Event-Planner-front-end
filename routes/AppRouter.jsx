@@ -1,12 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import PrivateRoute from "../src/routes/PrivateRoute";
-import OrganizerDashboard from "../src/pages/dashboard/OrganizerDashboard";
 import ReceptionistDashboard from "../src/pages/dashboard/ReceptionistDashboard";
 import NewEvent from "../pages/Events/NewEvent";
 import AddUser from "../pages/users/AddUser";
 import OrganizersList from "../pages/users/OrganizersList";
 import ReceptionistsList from "../pages/users/ReceptionistList";
+import EventsHome from "../pages/Events/EventsHome";
 
 export default function AppRouter() {
   return (
@@ -18,7 +18,7 @@ export default function AppRouter() {
           path="/dashboard"
           element={
             <PrivateRoute allowedRoles={["organizer"]}>
-              <OrganizerDashboard />
+              <EventsHome />
             </PrivateRoute>
           }
         />
