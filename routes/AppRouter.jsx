@@ -5,6 +5,8 @@ import OrganizerDashboard from "../src/pages/dashboard/OrganizerDashboard";
 import ReceptionistDashboard from "../src/pages/dashboard/ReceptionistDashboard";
 import NewEvent from "../pages/Events/NewEvent";
 import AddUser from "../pages/users/AddUser";
+import OrganizersList from "../pages/users/OrganizersList";
+import ReceptionistsList from "../pages/users/ReceptionistList";
 
 export default function AppRouter() {
   return (
@@ -51,6 +53,23 @@ export default function AppRouter() {
           element={
             <PrivateRoute allowedRoles={["organizer"]}>
               <AddUser />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/organizers"
+          element={
+            <PrivateRoute allowedRoles={["organizer"]}>
+              <OrganizersList />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/receptionists"
+          element={
+            <PrivateRoute allowedRoles={["organizer"]}>
+              <ReceptionistsList />
             </PrivateRoute>
           }
         />
