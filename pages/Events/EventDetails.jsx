@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getEventById, deleteEvent } from "../../src/services/eventService";
+import { generateInvitationLink } from "../../src/services/invitationService";
 
 const PLACEHOLDER_ATTENDEES = [
   { id: 1, name: "Ama Boateng", status: "present", table: "4" },
@@ -17,19 +18,36 @@ export default function EventDetails() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
+  // Event state
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Attendee state
   const [attendees, setAttendees] = useState(PLACEHOLDER_ATTENDEES);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [tableValue, setTableValue] = useState("");
+  const menuRef = useRef(null);
+
+  // Modal state
   const [ticketModal, setTicketModal] = useState(null);
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const menuRef = useRef(null);
 
+  // Invite modal state
+  const [inviteModal, setInviteModal] = useState(false);
+  const [contactType, setContactType] = useState("email");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientContact, setRecipientContact] = useState("");
+  const [generatedLink, setGeneratedLink] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sentSuccess, setSentSuccess] = useState(false);
+
+  // Fetch event
   useEffect(() => {
     const fetchEvent = async () => {
       setLoading(true);
@@ -45,6 +63,7 @@ export default function EventDetails() {
     fetchEvent();
   }, [id]);
 
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -74,12 +93,44 @@ export default function EventDetails() {
     }
   };
 
+  const handleGenerate = async () => {
+    setInviteError("");
+    if (!recipientName.trim()) { setInviteError("Recipient name is required"); return; }
+    if (!recipientContact.trim()) { setInviteError("Contact is required"); return; }
+    setGenerating(true);
+    try {
+      const { link } = await generateInvitationLink({
+        event_id: event.id,
+        recipient_name: recipientName,
+        recipient_contact: recipientContact,
+        contact_type: contactType,
+      });
+      setGeneratedLink(link);
+    } catch (err) {
+      setInviteError(err.response?.data?.message || "Failed to generate link");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSend = async () => {
+    // SMS/email integration later
+    setSending(true);
+    setTimeout(() => { setSending(false); setSentSuccess(true); }, 1000);
+  };
+
   const formatDate = (date) =>
     new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   const formatTime = (time) => {
     const [h, m] = time.split(":");
-    const hour = ((+h % 12) || 12);
+    const hour = +h % 12 || 12;
     const ampm = +h >= 12 ? "PM" : "AM";
     return `${hour}:${m} ${ampm}`;
   };
@@ -90,13 +141,13 @@ export default function EventDetails() {
     setOpenMenuId(null);
   };
 
-  const saveTable = (id) => {
-    setAttendees(attendees.map(a => a.id === id ? { ...a, table: tableValue } : a));
+  const saveTable = (aid) => {
+    setAttendees(attendees.map((a) => (a.id === aid ? { ...a, table: tableValue } : a)));
     setEditingId(null);
   };
 
-  const handleDeleteAttendee = (id) => {
-    setAttendees(attendees.filter(a => a.id !== id));
+  const handleDeleteAttendee = (aid) => {
+    setAttendees(attendees.filter((a) => a.id !== aid));
     setOpenMenuId(null);
   };
 
@@ -106,35 +157,28 @@ export default function EventDetails() {
     pending: { background: "#f2f2f2", color: "#888" },
   };
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 14, fontFamily: "sans-serif" }}>
-        Loading event...
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 14, fontFamily: "sans-serif" }}>
+      Loading event...
+    </div>
+  );
 
-  if (error && !event) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#c0392b", fontSize: 14, fontFamily: "sans-serif" }}>
-        {error}
-      </div>
-    );
-  }
+  if (error && !event) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#c0392b", fontSize: 14, fontFamily: "sans-serif" }}>
+      {error}
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8f7f4", fontFamily: "sans-serif" }}>
 
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 1.5rem", height: 60, background: "#fff",
-        borderBottom: "0.5px solid #e5e5e5"
-      }}>
+      {/* Top bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1.5rem", height: 60, background: "#fff", borderBottom: "0.5px solid #e5e5e5" }}>
         <div onClick={() => navigate("/dashboard")} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "#1a3a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="7.5" stroke="#d4a017" strokeWidth="1.2"/>
-              <circle cx="10" cy="10" r="1.5" fill="#d4a017"/>
+              <circle cx="10" cy="10" r="7.5" stroke="#d4a017" strokeWidth="1.2" />
+              <circle cx="10" cy="10" r="1.5" fill="#d4a017" />
             </svg>
           </div>
           <span style={{ fontSize: 16, fontWeight: 500, color: "#111" }}>Eventify</span>
@@ -142,7 +186,7 @@ export default function EventDetails() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 13, color: "#666" }}>{user?.name}</span>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#1a3a0f", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 500 }}>
-            {user?.name?.split(" ").map(n => n[0]).join("").toUpperCase()}
+            {user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase()}
           </div>
           <button onClick={handleLogout} style={{ fontSize: 12.5, padding: "5px 10px", borderRadius: 7, border: "0.5px solid #e5e5e5", background: "none", color: "#888", cursor: "pointer" }}>
             <i className="ti ti-logout" aria-hidden="true"></i>
@@ -150,8 +194,10 @@ export default function EventDetails() {
         </div>
       </div>
 
+      {/* Body */}
       <div style={{ display: "flex", flexWrap: "wrap" }}>
 
+        {/* LEFT - flyer + action buttons */}
         <div style={{ width: "100%", maxWidth: 380, padding: "1.75rem" }}>
           <div style={{
             borderRadius: 12, overflow: "hidden", height: 340,
@@ -160,7 +206,10 @@ export default function EventDetails() {
           }} />
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "1rem" }}>
-            <button style={{ ...btnStyle, background: "#1a3a0f", borderColor: "#1a3a0f", color: "#fff" }}>
+            <button
+              onClick={() => { setInviteModal(true); setGeneratedLink(""); setInviteError(""); setSentSuccess(false); setRecipientName(""); setRecipientContact(""); }}
+              style={{ ...btnStyle, background: "#1a3a0f", borderColor: "#1a3a0f", color: "#fff" }}
+            >
               <i className="ti ti-link" aria-hidden="true"></i> Generate invitation link
             </button>
             <button style={btnStyle}>
@@ -178,6 +227,7 @@ export default function EventDetails() {
           </div>
         </div>
 
+        {/* RIGHT - event details + attendance */}
         <div style={{ flex: 1, minWidth: 320, padding: "1.75rem", borderLeft: "0.5px solid #e5e5e5" }}>
           <div style={{ display: "flex", height: 3, width: 32, borderRadius: 2, overflow: "hidden", marginBottom: 8 }}>
             <span style={{ flex: 1, background: "#d4a017" }} />
@@ -221,11 +271,7 @@ export default function EventDetails() {
                   <tr key={a.id}>
                     <td style={tdStyle}>{a.name}</td>
                     <td style={tdStyle}>
-                      <span style={{
-                        fontSize: 10.5, fontWeight: 500, padding: "3px 9px", borderRadius: 20,
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        ...statusStyle[a.status]
-                      }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 500, padding: "3px 9px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 4, ...statusStyle[a.status] }}>
                         <i className="ti ti-circle-filled" aria-hidden="true" style={{ fontSize: 6 }}></i>
                         {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                       </span>
@@ -252,13 +298,8 @@ export default function EventDetails() {
                       >
                         <i className="ti ti-dots" aria-hidden="true"></i>
                       </button>
-
                       {openMenuId === a.id && (
-                        <div ref={menuRef} style={{
-                          position: "absolute", right: 10, top: "100%", marginTop: 4,
-                          background: "#fff", border: "0.5px solid #e5e5e5", borderRadius: 8,
-                          padding: 4, minWidth: 140, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 50
-                        }}>
+                        <div ref={menuRef} style={{ position: "absolute", right: 10, top: "100%", marginTop: 4, background: "#fff", border: "0.5px solid #e5e5e5", borderRadius: 8, padding: 4, minWidth: 140, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 50 }}>
                           <div onClick={() => { setTicketModal(a); setOpenMenuId(null); }} style={menuItemStyle}>
                             <i className="ti ti-ticket" aria-hidden="true"></i> View ticket
                           </div>
@@ -279,6 +320,7 @@ export default function EventDetails() {
         </div>
       </div>
 
+      {/* ── TICKET PREVIEW MODAL ── */}
       {ticketModal && (
         <div style={overlayStyle} onClick={() => setTicketModal(null)}>
           <div style={modalBoxStyle} onClick={(e) => e.stopPropagation()}>
@@ -303,6 +345,7 @@ export default function EventDetails() {
         </div>
       )}
 
+      {/* ── DELETE EVENT MODAL ── */}
       {deleteModal && (
         <div style={overlayStyle} onClick={() => !deleting && setDeleteModal(false)}>
           <div style={{ ...modalBoxStyle, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
@@ -324,10 +367,133 @@ export default function EventDetails() {
           </div>
         </div>
       )}
+
+      {/* ── INVITE MODAL ── */}
+      {inviteModal && (
+        <div style={overlayStyle} onClick={() => setInviteModal(false)}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "1.5rem", width: "100%", maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 500, color: "#111" }}>Generate invitation link</h3>
+                <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Link expires after one use</p>
+              </div>
+              <button onClick={() => setInviteModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: 18 }} aria-label="Close">
+                <i className="ti ti-x" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            {inviteError && (
+              <p style={{ background: "#fff4f4", border: "1px solid #fcd4d4", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: "#c0392b", marginBottom: "1rem" }}>
+                {inviteError}
+              </p>
+            )}
+
+            {/* Recipient name */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={modalLabelStyle}>Recipient name</label>
+              <input
+                value={recipientName}
+                onChange={(e) => setRecipientName(e.target.value)}
+                placeholder="e.g. Ama Boateng"
+                style={modalInputStyle}
+              />
+            </div>
+
+            {/* Contact type toggle */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={modalLabelStyle}>Send via</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {["email", "sms"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => { setContactType(type); setRecipientContact(""); }}
+                    style={{
+                      flex: 1, height: 38, borderRadius: 8, fontSize: 13,
+                      border: contactType === type ? "1.5px solid #1a3a0f" : "1px solid #e0e0e0",
+                      background: contactType === type ? "#f0f5ee" : "#fff",
+                      color: contactType === type ? "#1a3a0f" : "#666",
+                      cursor: "pointer", fontWeight: contactType === type ? 500 : 400,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+                    }}
+                  >
+                    <i className={`ti ${type === "email" ? "ti-mail" : "ti-device-mobile"}`} aria-hidden="true"></i>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Contact input */}
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={modalLabelStyle}>{contactType === "email" ? "Email address" : "Phone number"}</label>
+              <input
+                type={contactType === "email" ? "email" : "tel"}
+                value={recipientContact}
+                onChange={(e) => setRecipientContact(e.target.value)}
+                placeholder={contactType === "email" ? "ama@example.com" : "+233 XX XXX XXXX"}
+                style={modalInputStyle}
+              />
+            </div>
+
+            {/* Generate button */}
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              style={{ width: "100%", height: 42, background: "#1a3a0f", color: "#fff", border: "none", borderRadius: 8, fontSize: 13.5, fontWeight: 500, cursor: generating ? "not-allowed" : "pointer", opacity: generating ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: "1rem" }}
+            >
+              <i className="ti ti-link" aria-hidden="true"></i>
+              {generating ? "Generating..." : "Generate link"}
+            </button>
+
+            {/* Generated link + send */}
+            {generatedLink && (
+              <>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={modalLabelStyle}>Generated link</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ flex: 1, height: 38, border: "1px solid #e0e0e0", borderRadius: 8, padding: "0 10px", fontSize: 12, color: "#555", background: "#fafafa", display: "flex", alignItems: "center", overflow: "hidden" }}>
+                      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {generatedLink}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      style={{ height: 38, padding: "0 12px", borderRadius: 8, border: "1px solid #e0e0e0", background: copied ? "#f0f5ee" : "#fff", color: copied ? "#2d5a1b" : "#666", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}
+                    >
+                      <i className={`ti ${copied ? "ti-check" : "ti-copy"}`} aria-hidden="true"></i>
+                      {copied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ height: "0.5px", background: "#f0f0f0", margin: "0.75rem 0" }} />
+
+                {sentSuccess ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: "#2d5a1b", fontSize: 13, padding: "8px 0" }}>
+                    <i className="ti ti-check" aria-hidden="true"></i> Link sent successfully
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={sending}
+                    style={{ width: "100%", height: 42, background: "#fff", color: "#1a3a0f", border: "1.5px solid #1a3a0f", borderRadius: 8, fontSize: 13.5, fontWeight: 500, cursor: sending ? "not-allowed" : "pointer", opacity: sending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                  >
+                    <i className={`ti ${contactType === "email" ? "ti-mail" : "ti-device-mobile"}`} aria-hidden="true"></i>
+                    {sending ? "Sending..." : `Send via ${contactType}`}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+// ── Styles ──
 const btnStyle = {
   display: "flex", alignItems: "center", gap: 8, fontSize: 13,
   padding: "9px 12px", borderRadius: 8, border: "0.5px solid #e5e5e5",
@@ -341,3 +507,5 @@ const tdStyle = { padding: "9px 10px", borderBottom: "0.5px solid #f0f0f0", colo
 const menuItemStyle = { display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "7px 9px", borderRadius: 6, color: "#555", cursor: "pointer" };
 const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 };
 const modalBoxStyle = { background: "#fff", borderRadius: 14, padding: "1.5rem", width: "100%", maxWidth: 340 };
+const modalLabelStyle = { display: "block", fontSize: 12.5, fontWeight: 500, color: "#444", marginBottom: 5 };
+const modalInputStyle = { width: "100%", height: 38, border: "1px solid #e0e0e0", borderRadius: 8, padding: "0 12px", fontSize: 13.5, color: "#111", background: "#fff", outline: "none", fontFamily: "sans-serif" };
