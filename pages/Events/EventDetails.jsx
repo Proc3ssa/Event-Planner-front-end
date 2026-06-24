@@ -36,7 +36,7 @@ export default function EventDetails() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editModal, setEditModal] = useState(false);
-  const menuRef = useRef(null);
+ 
 
   useEffect(() => {
     const fetchEvent = async () => {
