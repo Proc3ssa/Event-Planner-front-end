@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getEventById, deleteEvent } from "../../src/services/eventService";
+import { generateInvitationLink } from "../../src/services/invitationService";
 import EditEventModal from "../../components/events/EditEventModal";
 
 const PLACEHOLDER_ATTENDEES = [
@@ -18,14 +19,19 @@ export default function EventDetails() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
+  // Event state
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Attendee state
   const [attendees, setAttendees] = useState(PLACEHOLDER_ATTENDEES);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [tableValue, setTableValue] = useState("");
+  const menuRef = useRef(null);
+
+  // Modal state
   const [ticketModal, setTicketModal] = useState(null);
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -47,6 +53,7 @@ export default function EventDetails() {
     fetchEvent();
   }, [id]);
 
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -74,6 +81,38 @@ export default function EventDetails() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleGenerate = async () => {
+    setInviteError("");
+    if (!recipientName.trim()) { setInviteError("Recipient name is required"); return; }
+    if (!recipientContact.trim()) { setInviteError("Contact is required"); return; }
+    setGenerating(true);
+    try {
+      const { link } = await generateInvitationLink({
+        event_id: event.id,
+        recipient_name: recipientName,
+        recipient_contact: recipientContact,
+        contact_type: contactType,
+      });
+      setGeneratedLink(link);
+    } catch (err) {
+      setInviteError(err.response?.data?.message || "Failed to generate link");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSend = async () => {
+    // SMS/email integration later
+    setSending(true);
+    setTimeout(() => { setSending(false); setSentSuccess(true); }, 1000);
   };
 
   const formatDate = (date) =>
@@ -243,6 +282,7 @@ export default function EventDetails() {
         </div>
       </div>
 
+      {/* Body */}
       <div style={{ display: "flex", flexWrap: "wrap" }}>
         <div style={{ width: "100%", maxWidth: 380, padding: "1.75rem" }}>
           <div
@@ -465,7 +505,6 @@ export default function EventDetails() {
                       >
                         <i className="ti ti-dots" aria-hidden="true"></i>
                       </button>
-
                       {openMenuId === a.id && (
                         <div
                           ref={menuRef}
@@ -518,6 +557,7 @@ export default function EventDetails() {
         </div>
       </div>
 
+      {/* ── TICKET PREVIEW MODAL ── */}
       {ticketModal && (
         <div style={overlayStyle} onClick={() => setTicketModal(null)}>
           <div style={modalBoxStyle} onClick={(e) => e.stopPropagation()}>
@@ -598,6 +638,7 @@ export default function EventDetails() {
         </div>
       )}
 
+      {/* ── DELETE EVENT MODAL ── */}
       {deleteModal && (
         <div
           style={overlayStyle}
@@ -697,6 +738,7 @@ export default function EventDetails() {
   );
 }
 
+// ── Styles ──
 const btnStyle = {
   display: "flex",
   alignItems: "center",
