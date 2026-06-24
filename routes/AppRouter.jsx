@@ -8,6 +8,7 @@ import OrganizersList from "../pages/users/OrganizersList";
 import ReceptionistsList from "../pages/users/ReceptionistList";
 import EventsHome from "../pages/Events/EventsHome";
 import EventDetails from "../pages/Events/EventDetails";
+import InvitePage from "../pages/invite/InvitePage";
 
 export default function AppRouter() {
   return (
@@ -83,6 +84,7 @@ export default function AppRouter() {
             </PrivateRoute>
           }
         />
+        <Route path="/invite/:token" element={<InvitePage />} />
       </Routes>
     </BrowserRouter>
   );
